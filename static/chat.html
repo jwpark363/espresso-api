@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>FastAPI Chat</title>
+    <style>
+        .chatroom{
+            display: flex;
+            flex-direction: column;
+        }
+        .stage_info{
+            padding: 12px;
+            font-size: 16px;
+            color: brown;
+            font-weight: bold;
+        }
+        form{
+            margin-top: 20px;
+            width: 400px;
+            height: 200px;
+            background-color: blueviolet;
+            font-size: 24px;
+            border-radius: 20px;
+            display: flex;
+            gap:20px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        button{
+            font-size: 18px;
+            color:antiquewhite;
+            background-color: tomato;
+            padding: 8px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+        }
+        .input_box{
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: right;
+        }
+        input{
+            width: none;
+            padding: 12px;
+            font-size: 16px;
+        }
+        .img_result{
+            margin-top: 20px;
+            width: 800px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            font-size: 16px;
+            color: blueviolet;
+            font-weight: bold;
+        }
+        .img_box{
+            margin-top: 8px;
+            width: 800px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        img{
+            width: 350px;
+            border-radius: 24px;
+        }
+
+</style>
+</head>
+<body>
+    <div class="chatroom">
+    <h1>FastAPI WebSocket Chat</h1>
+        <div>
+        <input type="text" id="chatid" placeholder="Type your ID" />
+        <button id="connect_btn" onclick="connect()">Connect</button>
+        </div>
+        <div class="stage_info">
+            <span>스테이지 : </span><span id="stage_info">시작전</span>
+        </div>
+    <div class="form">
+        <form id="target_form">
+            <label for="target_file">포즈 이미지 파일 선택</label>
+            <div class="input_box">
+                <input type="file" id="target_file" name="image" accept="image/*"/>
+            </div>
+            <button id='submit_btn' type="submit">분석</button>
+        </form>
+    </div>
+    <div class="img_result">
+        <span id="result_me"></span>
+        <span id="result_you"></span>
+    </div>
+    <div class="img_box">
+        <img id="image_me" src="#" alt="나의 이미지"/>
+        <img id="image_you" src="#" alt="상대 이미지"/>
+    </div>
+    <ul id="messages"></ul>
+
+<script>
+    let ws = undefined;
+    const form = document.getElementById("target_form")
+    const input_image = document.getElementById('target_file')
+    const image_me = document.getElementById('image_me');
+    image_me.style.display = 'none';
+    const image_you = document.getElementById('image_you');
+    image_you.style.display = 'none';
+    let is_complete = false;
+    // 라운드의 키워드 저장
+    const stage = []
+
+    input_image.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        console.log(file)
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const image_me = document.getElementById('image_me');
+                image_me.src = e.target.result;
+                image_me.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    function addOption(new_id) {
+        const select = document.getElementById("receive_id");
+        const new_option = document.createElement("option");
+        new_option.value = new_id;
+        new_option.text = new_id;
+        select.appendChild(new_option);
+    }
+    
+    function connect(){
+        let myid = document.getElementById("chatid").value.trim();
+        if(myid.length === 0)
+            return
+        if(ws !== undefined)
+            return
+        ws = new WebSocket(`ws://localhost:8000/chat/${myid}`);
+        console.log(ws.readyState);
+        if(ws.readyState === 0 || ws.readyState === 1){
+            ws.onmessage = function(event) {
+                const receive_data = JSON.parse(event.data);
+                console.log(receive_data);
+                //[system] 으로 시작하면 신규 멤버 추가
+                if(receive_data.message){
+                    const messages = document.getElementById("messages");
+                    const message = document.createElement("li");
+                    message.textContent = receive_data.message;
+                    messages.appendChild(message);
+                }
+                if(receive_data.info){
+                    check_stage(receive_data.info)
+                    show_result(receive_data.info)
+                }
+            };
+            document.getElementById("connect_btn").disabled = true;
+            alert('connection ok')
+        }else{
+            alert('접속이 실패하였습니다. 다시 시도하세요.')
+        }
+    }
+    function check_stage(info){
+        console.log('**** check_stage')
+        stage_info = info.stage
+        step = stage_info[0]
+        if(stage.length == step)
+            stage[step] = stage_info[1]
+            console.log(stage)
+            if(stage.length > 1){
+                //하나의 스테이지가 추가 되는 경우 발생 결과 출력
+            }
+        const stage_span = document.getElementById('stage_info')
+        if(stage.length == 0){
+            stage_span.innerText = '준비중'
+        }else{
+            stage_span.innerText = stage.join(' > ')
+        }
+    }
+    // 분석 진행을 하였다면 결과를 화면에 표시
+    // 상대방의 결과가 있는지 확인하여 처리
+    function show_result(info){
+        console.log('**** show result')
+        if(! is_complete)
+            return
+        console.log(info)
+        const myid = document.getElementById("chatid").value.trim();
+        const count_id = info.ids.filter(id => id !== myid)[0]
+        const count_image = info.result[0][count_id]['image']
+        const my_result = info.result[0][myid]['result'][0]
+        const count_result = info.result[0][count_id]['result'][0]
+        if(count_image){
+            console.log(count_image)
+            image_you.src = `data:image/png;base64,${count_image}`
+            image_you.style.display = 'block';
+            // 결과 출력
+            result_labels = info.result[0][myid]['result'][1]
+            my_max_value = Math.max(...my_result)
+            my_max_index = my_result.indexOf(my_max_value)
+            count_max_value = Math.max(...count_result)
+            count_max_index = count_result.indexOf(count_max_value)
+            console.log(result_labels)
+            console.log(my_max_value)
+            console.log(my_max_index)
+            console.log(count_max_value)
+            console.log(count_max_index)
+
+            const stage_index = result_labels.indexOf(stage[0])
+
+            const result_me = document.getElementById('result_me')
+            result_me.innerText = result_labels[my_max_index] +
+                '(' + my_max_value.toFixed(2) +')' +
+                '/' + result_labels[stage_index]   +
+                '(' + my_result[stage_index].toFixed(2) + ')';
+            const result_you = document.getElementById('result_you')
+            result_you.innerText = result_labels[count_max_index] +
+                '(' + count_max_value.toFixed(2) +')' +
+                '/' + result_labels[stage_index]   +
+                '(' + count_result[stage_index].toFixed(2) + ')';
+        }
+    }
+
+    function upload_image() {
+        const file = input_image.files[0];
+        if (!file) {
+            alert("이미지를 선택해주세요.");
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = function () {
+            // "data:image/png;base64,..." 제거
+            const base64Image = reader.result.split(',')[1];
+            const payload = {
+                message: 'test',
+                image: base64Image,
+                filename: file.name,
+                mimetype: file.type
+            };
+            ws.send(JSON.stringify(payload));
+        }
+        // 또는 readAsDataURL(file)로 Base64 전송
+        reader.readAsDataURL(file);
+    }
+    form.addEventListener('submit', (event) => {
+        console.log('start game....')
+        event.preventDefault();
+        const file = input_image.files[0];
+        console.log(file)
+        if(file) {
+            console.log('fetch');
+            (async () => upload_image())()
+            is_complete = true;
+            document.getElementById('submit_btn').disabled = true
+        } else {
+            alert(`이미지를 선택하세요!`);
+        }
+        //초기화
+    });
+    function sendMessage() {
+        if(ws === undefined)
+            return;
+        const receive_id = document.getElementById("receive_id");
+        console.log(receive_id.value)
+        const input = document.getElementById("messageInput");
+        const message = {
+            "to":receive_id.value.trim(),
+            "message":input.value.trim()
+        }
+        ws.send(JSON.stringify(message));
+        input.value = "";
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="icon.png" type="image/x-icon">
+    <title>Expresso (Fussion JAM)</title>
+    <style>
+        body{
+            margin:0pt;
+            background-color: #4339cc;
+            color: white;
+        }
+        .box{
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        form{
+            margin-top: 60px;
+            width: 400px;
+            height: 200px;
+            background-color: blueviolet;
+            font-size: 24px;
+            border-radius: 20px;
+            display: flex;
+            gap:20px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        button{
+            font-size: 18px;
+            color:antiquewhite;
+            background-color: tomato;
+            padding: 8px;
+            border-radius: 12px;
+            border: none;
+            cursor: pointer;
+        }
+        .input_box{
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: right;
+        }
+        input{
+            width: none;
+            padding: 12px;
+            font-size: 16px;
+        }
+        .img_box{
+            margin-top: 40px;
+            width: 800px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+        img{
+            width: 350px;
+            border-radius: 24px;
+        }
+        .result_box{
+            width: 600px;
+            height: 400px;
+        }
+        table{
+            width: 100%;
+            margin-top: 20px;
+            border: 1px solid gray;
+        }
+        thead{
+            background-color: darkgray;
+        }
+        td{
+            padding: 4px;
+            text-align: center;
+            border-top: 1px solid gray;
+        }
+    </style>
+</head>
+<body>
+<div class="box">
+    <h1>Expresso</h1>
+     <h2>얼굴 이미지에서 랜드마크 정보 가져오기</h2>
+    <div class="form">
+        <form id="target_form">
+            <label for="target_file">대상 이미지 파일 선택</label>
+            <div class="input_box">
+                <input type="file" id="target_file" name="image" accept="image/*"/>
+            </div>
+            <button type="submit">이미지 분석</button>
+        </form>
+    </div>
+    <div class="img_box">
+        <img id="image_source" src="#" alt="원본 이미지"/>
+        <img id="image_landmark" src="#" alt="분석 이미지"/>
+    </div>
+    <div class="result_box" id="landmark_result"></div>
+</div>
+</div>
+</body>
+<script>
+    const form = document.getElementById("target_form")
+    const input_image = document.getElementById('target_file')
+    const image_source = document.getElementById('image_source');
+    image_source.style.display = 'none';
+    const image_landmark = document.getElementById('image_landmark');
+    image_landmark.style.display = 'none';
+    const landmark_result = document.getElementById('landmark_result')
+
+    input_image.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const image_source = document.getElementById('image_source');
+                image_source.src = e.target.result;
+                image_source.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+
+    function generate_table(data) {
+        const table = document.createElement('table');
+        const thead = document.createElement('thead');
+        const tbody = document.createElement('tbody');
+        const header_row = document.createElement('tr');
+        const headers = ['x1', 'y1', 'x2', 'y2', 'conf', 'cls'];
+        headers.forEach(header => {
+            const th = document.createElement('th');
+            th.textContent = header;
+            header_row.appendChild(th);
+        });
+        thead.appendChild(header_row);
+        table.appendChild(thead);
+        data.forEach(row => {
+            const tr = document.createElement('tr');
+            row.forEach(cell => {
+                const td = document.createElement('td');
+                td.textContent = cell.toFixed(2);
+                tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+        });
+        table.appendChild(tbody);
+        return table;
+    }
+
+    async function upload_image() {
+        const file = input_image.files[0];
+        if (!file) {
+            alert('Please select a file.');
+            return;
+        }
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            url = 'http://172.16.20.152:8000/landmark'
+            const response = await fetch(url, {
+                method: 'POST',
+                body: formData,
+            });
+            if (!response.ok) {
+                throw new Error(`Landmark 분석 실패! status: ${response.status}`);
+            }
+            const result = await response.json();
+            console.log('Landmark Result:', result);
+            alert('Landmark 분석이 완료 되었습니다!');
+            // console.log(result.landmark_image)
+            if(result.landmark_image){
+                // console.log("image")
+                image_landmark.src = `/download/${result.landmark_image}`
+                image_landmark.style.display = 'block'
+                // landmark_result.appendChild(generate_table(result.result))
+            }
+
+        } catch (error) {
+            console.error('Error:', error);
+            alert('File upload failed.');
+        }
+    }    
+
+    form.addEventListener('submit', (event) => {
+        console.log('start landmark....')
+        event.preventDefault();
+        const file = input_image.files[0];
+        console.log(file)
+        if(file) {
+            console.log('fetch');
+            (async () => upload_image())()
+        } else {
+            alert(`이미지를 선택하세요!`);
+        }
+        //초기화
+    });
+</script>
+</html>
