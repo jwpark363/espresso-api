@@ -25,6 +25,11 @@ class ChatMessage:
         }
     
     def message(self,code:ChatCode,message:str|None=None,stage=None):
+        if stage is None:
+            stage = {
+                'result':[],
+                'stage':[]
+            }
         return {
             'code':code.value,
             'status': self.chat_message[code],
