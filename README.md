@@ -3,6 +3,7 @@
 - 백앤드 : FastApi, WebSocket
 - 모델 : ‘Efficient Emotion Analysis and Facial Expression Recognition’
 - 모델 링크 : https://github.com/sb-ai-lab/EmotiEffLib
+- ppt : https://github.com/jwpark363/espresso-api/blob/main/Expresso-%EC%9C%B5%ED%95%A9%EC%9E%BC.pdf
 
 ### 시나리오
 1. 익명의 두사람이 서버 접속
@@ -13,4 +14,4 @@
     - 1. 해당 사진의 표정 분류, 제시어에 대한 score, 사진
     - 2. 상대방의 표정 분류, 제시어에 대한 score, 사진
     - 3. 다음 스테이지 제시어
-6. 분석 결과를 자신의 것과 상대방의 것을 비교하여 보여줌
+6. 분석 결과를 자신의 것과 상대방의 것을 비교하여 보여줌W
